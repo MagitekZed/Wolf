@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Disc Golf Wolf — Scorekeeper</title>
+  <style>
+    :root {
+      --bg: #0f1221;
+      --panel: #171a2f;
+      --muted: #9aa3b2;
+      --text: #e8ebf0;
+      --accent: #6de5b5;
+      --accent-2: #8ab6ff;
+      --danger: #ff6b6b;
+      --warn: #ffd166;
+      --ok: #95e06c;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 700px at 70% -200px, #1b1e39 0, #0f1221 55%, #0b0d19 100%);
+      color: var(--text);
+    }
+    header {
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      padding: 18px 20px; position: sticky; top: 0; z-index: 10; backdrop-filter: blur(8px);
+      background: linear-gradient(180deg, rgba(11,13,25,.7), rgba(11,13,25,.25), rgba(11,13,25,0));
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .title { font-weight: 800; letter-spacing:.3px; font-size: clamp(18px, 3vw, 24px); }
+    .subtitle { color: var(--muted); font-size: 12px }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 18px; display: grid; gap: 18px; }
+    .grid { display:grid; grid-template-columns: 340px 1fr; gap: 18px; }
+    @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--panel); border: 1px solid rgba(255,255,255,.08); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .card h3 { margin: 0 0 12px; font-size: 16px; letter-spacing:.3px }
+    .card .body { padding: 16px; }
+    .row { display:flex; gap: 10px; align-items:center; }
+    .row.wrap { flex-wrap: wrap; }
+    .stack { display:grid; gap: 10px; }
+    input[type="text"], input[type="number"], select { width:100%; padding:10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: #0e1226; color: var(--text); }
+    .btn { --b: rgba(255,255,255,.12); background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0)); border:1px solid var(--b);
+      color: var(--text); padding: 10px 12px; border-radius: 12px; font-weight: 700; cursor: pointer; transition:.15s ease transform, .2s ease background;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:disabled { opacity:.5; cursor:not-allowed }
+    .btn.accent { background: linear-gradient(180deg, rgba(109,229,181,.25), rgba(109,229,181,.1)); border-color: rgba(109,229,181,.5); color:#0b1b14; }
+    .btn.primary { background: linear-gradient(180deg, rgba(138,182,255,.25), rgba(138,182,255,.1)); border-color: rgba(138,182,255,.5); color:#0b1221; }
+    .btn.warn { background: linear-gradient(180deg, rgba(255,209,102,.25), rgba(255,209,102,.1)); border-color: rgba(255,209,102,.5); color:#1a1300; }
+    .btn.danger { background: linear-gradient(180deg, rgba(255,107,107,.25), rgba(255,107,107,.1)); border-color: rgba(255,107,107,.5); color:#23090b; }
+    .tag { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius: 999px; border:1px solid rgba(255,255,255,.12); background:#0c1122; font-size:12px; color:var(--muted) }
+    .tag .dot { width:8px; height:8px; border-radius:50%; background: var(--accent); box-shadow:0 0 0 2px rgba(109,229,181,.2); }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; border-bottom: 1px dashed rgba(255,255,255,.08); text-align:left }
+    th { font-size:12px; color: var(--muted); font-weight: 600; }
+    .score { font-weight: 900; font-variant-numeric: tabular-nums; }
+    .pill { padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.12); background: #0c1222; font-size: 12px; }
+    .hr { height:1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.12), transparent); margin: 8px 0 12px; }
+    .muted { color: var(--muted); }
+    .flex-between { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    details summary { cursor: pointer; list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px; padding:.2em .5em; border:1px solid rgba(255,255,255,.14); border-bottom-width:2px; border-radius:8px; background:#0b0f1e; }
+    .list { padding-left: 18px; }
+    .list li { margin: 6px 0; }
+    .footer { padding: 12px; font-size: 12px; color: var(--muted); text-align:center; }
+    .chooser { display:flex; flex-wrap: wrap; gap: 8px; }
+    .chooser .btn { padding:8px 10px; font-weight:700 }
+    .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="title">🐺 Disc Golf <span style="color:var(--accent)">Wolf</span> — Scorekeeper</div>
+      <div class="subtitle">Add players • rotate Wolf • choose partner or Lone Wolf • track tee order & points • undo • auto‑save</div>
+    </div>
+    <div class="row">
+      <button class="btn" id="helpBtn">Rules & Help</button>
+      <button class="btn" id="resetBtn" title="Clear everything">Reset</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="grid">
+      <!-- LEFT: Controls -->
+      <div class="card">
+        <div class="body stack">
+          <h3>Players</h3>
+          <div class="row">
+            <input id="playerName" placeholder="Add player name" />
+            <button class="btn accent" id="addPlayer">Add</button>
+          </div>
+          <div id="playersList" class="stack"></div>
+
+          <div class="hr"></div>
+          <h3>Game Settings</h3>
+          <div class="stack">
+            <label class="row" title="By default, Wolf tees last (common Wolf variant). Toggle if your group tees Wolf first.">
+              <input type="checkbox" id="wolfTeesFirst" />
+              Wolf tees first (instead of last)
+            </label>
+            <details>
+              <summary class="row"><span class="pill">Scoring</span> <span class="muted">(click to expand)</span></summary>
+              <div class="grid-2" style="margin-top:10px">
+                <label>2v2 — winners (points <em>each</em>)<br><input type="number" id="pts2v2" min="0" step="1" value="1"></label>
+                <label>1v3 — winners (points <em>each</em>)<br><input type="number" id="pts1v3" min="0" step="1" value="2"></label>
+                <label>Lone Wolf — Wolf points (win)<br><input type="number" id="ptsLoneWolf" min="0" step="1" value="3"></label>
+                <label>Carry ties? (skins-style)<br>
+                  <select id="carryTies">
+                    <option value="no" selected>No — wash the hole</option>
+                    <option value="yes">Yes — carry to next hole</option>
+                  </select>
+                </label>
+              </div>
+              <p class="muted" style="margin-top:6px">Defaults match a common modern Wolf scoring: 2v2=1, 1v3=2, Lone Wolf=3. Edit if your group uses another chart.</p>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Scoreboard / Flow -->
+      <div class="card">
+        <div class="body stack">
+          <div class="flex-between">
+            <h3>Round</h3>
+            <div class="row">
+              <span class="tag"><span class="dot"></span> <span id="statusTag">Waiting for players…</span></span>
+            </div>
+          </div>
+
+          <div class="row wrap" id="roundInfo" style="display:none">
+            <div class="pill">Hole <strong id="holeNum">1</strong></div>
+            <div class="pill">Wolf: <strong id="wolfName">—</strong></div>
+            <div class="pill">Tee order: <strong id="teeOrder">—</strong></div>
+            <div class="pill" id="teeCursorBox" style="display:none">On tee: <strong id="onTee">—</strong></div>
+            <div class="pill">Carryover: <strong id="carryPts">0</strong></div>
+          </div>
+
+          <div id="flow" class="stack" style="display:none">
+            <div id="phaseTee">
+              <h3>1) Tee Shots</h3>
+              <div class="row wrap">
+                <button class="btn warn" id="declareLone" title="Wolf declares before anyone else tees">Declare Lone Wolf</button>
+                <span class="muted">or</span>
+                <div class="chooser" id="choosePartnerBox" title="Wolf may choose a partner after seeing a tee shot">
+                  <!-- partner buttons injected here -->
+                </div>
+              </div>
+              <div class="row" style="margin-top:10px">
+                <button class="btn" id="nextTee">Next tee shot</button>
+                <span class="muted">Use when moving through tee shots. Partner choice locks in the moment you click it.</span>
+              </div>
+            </div>
+
+            <div id="phaseResult" style="display:none">
+              <h3>2) Result</h3>
+              <div class="chooser">
+                <button class="btn primary" id="wolfSideWins">Wolf side wins hole</button>
+                <button class="btn" id="opponentsWin">Opponents win hole</button>
+                <button class="btn" id="tieHole">Tie</button>
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:8px">
+              <button class="btn" id="undoBtn" title="Undo last completed hole">Undo</button>
+              <button class="btn" id="newHoleBtn" style="display:none">Next hole →</button>
+            </div>
+
+            <div class="hr"></div>
+
+            <h3>Scoreboard</h3>
+            <div class="table-wrap">
+              <table id="scoreTable">
+                <thead>
+                  <tr><th>Player</th><th>Points</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="help" style="display:none">
+      <div class="body">
+        <h3>Wolf — Quick Rules (disc golf variant)</h3>
+        <ul class="list">
+          <li><strong>Rotate the Wolf each hole.</strong> By default the Wolf tees <em>last</em>; toggle in settings if your group tees the Wolf first.</li>
+          <li>After each other player’s tee shot, the Wolf may <strong>pick that player as a partner</strong> for the hole — otherwise the Wolf can wait for the next tee or pass on all and be <strong>Lone Wolf</strong>.</li>
+          <li><strong>Lone Wolf</strong> must be declared <em>before</em> anyone else tees (classic rule). In this app, use the button before stepping through tee shots.</li>
+          <li><strong>Scoring (editable):</strong> 2v2 = 1 point to each winner; 1v3 = 2 points to each winner; Lone Wolf = 3 points to the Wolf. Ties wash by default; optional carry‑over (skins‑style).</li>
+        </ul>
+        <p class="muted">Tip: You can edit the scoring to match your local house rules.</p>
+      </div>
+    </section>
+
+    <div class="footer">Auto‑saves to your browser. Works offline on GitHub Pages.</div>
+  </main>
+
+  <script>
+    // --- State ---
+    const LS_KEY = 'wolf_scorekeeper_v1';
+    let state = {
+      players: [], // {id, name, points}
+      hole: 1,
+      wolfIndex: 0, // index into players
+      wolfTeesFirst: false,
+      scoring: { pts2v2: 1, pts1v3: 2, ptsLoneWolf: 3, carryTies: false },
+      teeCursor: -1, // -1 before teeing starts; increments through tee order
+      partnerId: null,
+      loneWolf: false,
+      carryBank: 0,
+      history: [] // completed holes for undo
+    };
+
+    const el = sel => document.querySelector(sel);
+    const els = sel => Array.from(document.querySelectorAll(sel));
+
+    // --- Persistence ---
+    function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+    function load(){ const s = localStorage.getItem(LS_KEY); if(s){ try { state = JSON.parse(s); } catch{} } }
+
+    // --- Helpers ---
+    function uid(){ return Math.random().toString(36).slice(2,9); }
+    function playerById(id){ return state.players.find(p=>p.id===id); }
+    function currentWolf(){ return state.players[state.wolfIndex] || null; }
+
+    function teeOrder(){
+      if(state.players.length === 0) return [];
+      const idxs = state.players.map((_,i)=>i);
+      if(state.wolfTeesFirst){
+        // Wolf first; then the rest in order after
+        return [state.wolfIndex, ...idxs.filter(i=>i!==state.wolfIndex)];
+      } else {
+        // Wolf last; others in order, wolf appended
+        const others = idxs.filter(i=>i!==state.wolfIndex);
+        return [...others, state.wolfIndex];
+      }
+    }
+
+    function reorderForDisplay(order){
+      return order.map(i=>state.players[i]?.name).join(' → ');
+    }
+
+    function resetHoleFlow(){
+      state.teeCursor = -1;
+      state.partnerId = null;
+      state.loneWolf = false;
+      save();
+      renderFlow();
+    }
+
+    // --- Rendering ---
+    function renderPlayers(){
+      const box = el('#playersList');
+      box.innerHTML = '';
+      state.players.forEach((p, i)=>{
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML = `
+          <span class="pill" style="min-width:34px; text-align:center">${i+1}</span>
+          <input data-id="${p.id}" class="editName" value="${p.name}"/>
+          <button class="btn" data-id="${p.id}" data-act="moveUp" ${i===0?'disabled':''}>↑</button>
+          <button class="btn" data-id="${p.id}" data-act="moveDown" ${i===state.players.length-1?'disabled':''}>↓</button>
+          <button class="btn danger" data-id="${p.id}" data-act="remove">Remove</button>`;
+        box.appendChild(row);
+      });
+    }
+
+    function renderScore(){
+      const tbody = el('#scoreTable tbody');
+      tbody.innerHTML = '';
+      state.players.forEach(p=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p.name}</td><td class="score">${p.points||0}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderRoundInfo(){
+      const hasPlayers = state.players.length >= 3; // Wolf is best with 3–5
+      el('#roundInfo').style.display = hasPlayers ? '' : 'none';
+      el('#flow').style.display = hasPlayers ? '' : 'none';
+      el('#statusTag').textContent = hasPlayers ? 'In progress' : 'Waiting for players… (3–5 recommended)';
+      if(!hasPlayers) return;
+
+      const wolf = currentWolf();
+      el('#holeNum').textContent = state.hole;
+      el('#wolfName').textContent = wolf?.name || '—';
+      const order = teeOrder();
+      el('#teeOrder').textContent = reorderForDisplay(order);
+      el('#teeCursorBox').style.display = '';
+      const onIdx = order[Math.max(0, state.teeCursor)];
+      el('#onTee').textContent = (state.teeCursor===-1) ? '—' : state.players[onIdx]?.name || '—';
+      el('#carryPts').textContent = state.carryBank;
+
+      // Partner chooser
+      const chooseBox = el('#choosePartnerBox');
+      chooseBox.innerHTML = '';
+      const wolfId = wolf?.id;
+      state.players.forEach(p=>{
+        if(p.id===wolfId) return;
+        const b = document.createElement('button');
+        b.className = 'btn';
+        b.textContent = `Pick ${p.name}`;
+        b.disabled = state.loneWolf || state.partnerId || state.teeCursor < 0; // can only pick after seeing a tee shot
+        b.addEventListener('click', ()=>{
+          if(state.loneWolf) return;
+          state.partnerId = p.id;
+          save();
+          renderFlow();
+        });
+        chooseBox.appendChild(b);
+      });
+
+      // Lone Wolf and next tee
+      el('#declareLone').disabled = state.partnerId || state.teeCursor >= 0; // must be before any tee
+      el('#nextTee').disabled = state.teeCursor >= state.players.length-1; // after last tee
+
+      // Phase toggles
+      const canScore = state.loneWolf || state.partnerId || state.teeCursor >= state.players.length-1; // ok after tees / selection
+      el('#phaseResult').style.display = canScore ? '' : 'none';
+
+      // Show who is on tee
+      el('#onTee').textContent = (state.teeCursor === -1) ? '—' : state.players[order[state.teeCursor]]?.name || '—';
+
+      // Next hole button visible only after submitting result
+    }
+
+    function renderFlow(){
+      renderRoundInfo();
+      renderScore();
+    }
+
+    function renderSettings(){
+      el('#wolfTeesFirst').checked = !!state.wolfTeesFirst;
+      el('#pts2v2').value = state.scoring.pts2v2;
+      el('#pts1v3').value = state.scoring.pts1v3;
+      el('#ptsLoneWolf').value = state.scoring.ptsLoneWolf;
+      el('#carryTies').value = state.scoring.carryTies ? 'yes' : 'no';
+    }
+
+    // --- Actions ---
+    function addPlayer(name){
+      if(!name) return;
+      state.players.push({ id: uid(), name: name.trim(), points: 0 });
+      save();
+      renderPlayers();
+      renderFlow();
+    }
+
+    function removePlayer(id){
+      const i = state.players.findIndex(p=>p.id===id);
+      if(i<0) return;
+      state.players.splice(i,1);
+      // fix wolf index
+      if(state.wolfIndex >= state.players.length) state.wolfIndex = 0;
+      save();
+      renderPlayers();
+      renderFlow();
+    }
+
+    function movePlayer(i, dir){
+      const j = i + dir;
+      if(j<0 || j>=state.players.length) return;
+      const [p] = state.players.splice(i,1);
+      state.players.splice(j,0,p);
+      // keep wolf position pointing to same person if possible
+      save();
+      renderPlayers();
+      renderFlow();
+    }
+
+    function nextTee(){
+      state.teeCursor = Math.min(state.teeCursor + 1, state.players.length-1);
+      save();
+      renderFlow();
+    }
+
+    function declareLone(){
+      state.loneWolf = true;
+      save();
+      renderFlow();
+    }
+
+    function completeHole(result){
+      // result: 'wolf', 'opponents', 'tie'
+      const wolf = currentWolf();
+      if(!wolf) return;
+      const n = state.players.length;
+
+      // Determine teams
+      const wolfTeam = [wolf.id];
+      if(state.partnerId) wolfTeam.push(state.partnerId);
+      const oppTeam = state.players.filter(p=>!wolfTeam.includes(p.id)).map(p=>p.id);
+
+      // Points for this hole
+      const s = state.scoring;
+      let base = 0;
+      let awards = {}; // id -> +points
+
+      if(result === 'tie'){
+        if(s.carryTies){ state.carryBank += 1; } // carry one unit; can be thought of as a multiplier
+        // no points awarded now
+      } else {
+        let scale = 1 + state.carryBank; // carry increases payout linearly
+        state.carryBank = 0;
+        if(state.loneWolf){
+          if(result === 'wolf'){
+            base = s.ptsLoneWolf;
+            awards[wolf.id] = (awards[wolf.id]||0) + base * scale;
+          } else {
+            // opponents each get 1 (common house rule). We’ll map to 1v3 winners each get pts1v3/2 if you want, but keep simple: 1 each
+            oppTeam.forEach(id=>{ awards[id] = (awards[id]||0) + 1 * scale; });
+          }
+        } else if(wolfTeam.length === 2){
+          if(result === 'wolf'){
+            base = s.pts2v2;
+            wolfTeam.forEach(id=>{ awards[id] = (awards[id]||0) + base * scale; });
+          } else {
+            base = s.pts2v2; // other duo wins — award same base to each
+            oppTeam.forEach(id=>{ awards[id] = (awards[id]||0) + base * scale; });
+          }
+        } else {
+          // 1v3 but not declared lone (rare), treat as 1v3
+          base = s.pts1v3;
+          if(result === 'wolf') awards[wolf.id] = (awards[wolf.id]||0) + base * scale;
+          else oppTeam.forEach(id=>{ awards[id] = (awards[id]||0) + base * scale; });
+        }
+      }
+
+      // Apply points & record history for undo
+      const snapshot = JSON.parse(JSON.stringify({
+        hole: state.hole,
+        wolfIndex: state.wolfIndex,
+        partnerId: state.partnerId,
+        loneWolf: state.loneWolf,
+        awards,
+        carryBankAfter: state.carryBank
+      }));
+
+      Object.entries(awards).forEach(([id, pts])=>{
+        const p = playerById(id); if(p) p.points = (p.points||0) + pts;
+      });
+
+      state.history.push(snapshot);
+
+      // Advance to next hole
+      state.hole += 1;
+      state.wolfIndex = (state.wolfIndex + 1) % state.players.length;
+      resetHoleFlow();
+      save();
+      renderFlow();
+      // reveal Next Hole button briefly in case user wants to manually advance (UI nicety)
+      flashNextHole();
+    }
+
+    function flashNextHole(){
+      const b = el('#newHoleBtn');
+      b.style.display = '';
+      setTimeout(()=> b.style.display='none', 1500);
+    }
+
+    function undo(){
+      const last = state.history.pop();
+      if(!last) return;
+      // Roll back awards
+      Object.entries(last.awards).forEach(([id, pts])=>{
+        const p = playerById(id); if(p) p.points = (p.points||0) - pts;
+      });
+      state.hole = last.hole;
+      state.wolfIndex = last.wolfIndex;
+      state.partnerId = last.partnerId;
+      state.loneWolf = last.loneWolf;
+      state.carryBank = last.carryBankAfter; // already updated then; keep as is
+      state.teeCursor = state.players.length-1; // allow immediate rescore
+      save();
+      renderFlow();
+    }
+
+    function resetAll(){
+      if(!confirm('Reset players and scores?')) return;
+      state = {
+        players: [], hole: 1, wolfIndex: 0, wolfTeesFirst: false,
+        scoring: { pts2v2: 1, pts1v3: 2, ptsLoneWolf: 3, carryTies: false },
+        teeCursor: -1, partnerId: null, loneWolf: false, carryBank: 0, history: []
+      };
+      save();
+      renderPlayers();
+      renderSettings();
+      renderFlow();
+      el('#statusTag').textContent = 'Waiting for players…';
+    }
+
+    // --- Wire up UI ---
+    function bind(){
+      el('#addPlayer').addEventListener('click', ()=>{ addPlayer(el('#playerName').value); el('#playerName').value=''; });
+      el('#playerName').addEventListener('keydown', e=>{ if(e.key==='Enter'){ el('#addPlayer').click(); }});
+
+      el('#playersList').addEventListener('input', e=>{
+        const t = e.target; if(!t.classList.contains('editName')) return;
+        const p = playerById(t.dataset.id); if(p){ p.name = t.value; save(); renderFlow(); }
+      });
+      el('#playersList').addEventListener('click', e=>{
+        const act = e.target.dataset.act; if(!act) return;
+        const id = e.target.dataset.id;
+        if(act==='remove') removePlayer(id);
+        if(act==='moveUp'){ const i = state.players.findIndex(p=>p.id===id); movePlayer(i, -1); }
+        if(act==='moveDown'){ const i = state.players.findIndex(p=>p.id===id); movePlayer(i, +1); }
+      });
+
+      // Settings
+      el('#wolfTeesFirst').addEventListener('change', e=>{ state.wolfTeesFirst = e.target.checked; save(); renderFlow(); });
+      el('#pts2v2').addEventListener('change', e=>{ state.scoring.pts2v2 = parseInt(e.target.value||'0',10); save(); });
+      el('#pts1v3').addEventListener('change', e=>{ state.scoring.pts1v3 = parseInt(e.target.value||'0',10); save(); });
+      el('#ptsLoneWolf').addEventListener('change', e=>{ state.scoring.ptsLoneWolf = parseInt(e.target.value||'0',10); save(); });
+      el('#carryTies').addEventListener('change', e=>{ state.scoring.carryTies = (e.target.value==='yes'); save(); });
+
+      // Flow
+      el('#nextTee').addEventListener('click', nextTee);
+      el('#declareLone').addEventListener('click', declareLone);
+      el('#wolfSideWins').addEventListener('click', ()=>completeHole('wolf'));
+      el('#opponentsWin').addEventListener('click', ()=>completeHole('opponents'));
+      el('#tieHole').addEventListener('click', ()=>completeHole('tie'));
+      el('#undoBtn').addEventListener('click', undo);
+      el('#newHoleBtn').addEventListener('click', ()=>{ /* cosmetic only; auto‑advanced already */ });
+
+      // Help & reset
+      el('#helpBtn').addEventListener('click', ()=>{
+        const help = el('#help');
+        help.style.display = (help.style.display==='none' || help.style.display==='') ? '' : 'none';
+      });
+      el('#resetBtn').addEventListener('click', resetAll);
+    }
+
+    // --- Init ---
+    load();
+    bind();
+    renderPlayers();
+    renderSettings();
+    renderFlow();
+  </script>
+</body>
+</html>
